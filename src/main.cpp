@@ -7,6 +7,7 @@ const float thermistor_a1 = 0.003354016;
 const float thermistor_b1 = 0.0002460382;
 const float thermistor_c1 = 3.405377e-6;
 const float thermistor_d1 = 1.03424e-7;
+#define FANPIN 13
 
 class Chamber{
   public:
@@ -40,6 +41,9 @@ class Chamber{
     //float temp = 1/(thermistor_a1 + thermistor_b1*logR + thermistor_c1*logR*logR + thermistor_d1*logR*logR*logR);
     float temp = 1/(thermistor_a1 + thermistor_b1*logR + thermistor_c1*logR*logR*logR);
     temperature = temp-273.15; 
+    if(temperature<-10){
+      temperature = -99; //this is an error state
+    }
     return temperature;
   }
   void setOutputs(){
@@ -62,6 +66,28 @@ class Chamber{
       digitalWrite(basepin, LOW);
       digitalWrite(pwmpin, LOW);
     }
+  }
+  void basicPID(){
+    //if the temperature is below the set point
+    if(temperature > -99){
+      float distance_to_setpoint = setpoint - temperature;
+      if(abs(distance_to_setpoint)<1){
+        power = 0;
+      }else{
+        power = distance_to_setpoint * 50;
+      }
+    }else{
+      power = 0;
+    }
+    // float newpower = distance_to_setpoint * 50;
+    // float newpower;
+    // if(distance_to_setpoint>0){
+    //   newpower = (distance_to_setpoint)*scaler;
+    // }else if(distance_to_setpoint<0){
+    //   newpower = log10(distance_to_setpoint)*-scaler;
+    // }
+    // power = constrain(power, -255, 255);
+    setOutputs();
   }
   void cycleStatus(){ //quick way to switch directions, mainly for testing
     if(status<1){
@@ -109,12 +135,23 @@ void setup() {
     chambers[i].status = 0;
     chambers[i].setOutputs();
   }
+  pinMode(FANPIN, OUTPUT);
 }
 
 
 unsigned long timeLastUpdate = 0;
 
 void loop() {
+  //run the PID
+  bool fan = false;
+  for(int i=0;i<6;i++){
+    chambers[i].basicPID();
+    if(chambers[i].power<-150){
+      //turn the fan on
+      fan = true;
+    }
+  }
+  digitalWrite(FANPIN, fan);
   if(millis()-timeLastUpdate>250){
     timeLastUpdate=millis();
     for(int i=0;i<6;i++){
