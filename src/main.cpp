@@ -68,13 +68,17 @@ class Chamber{
     }
   }
   void basicPID(){
-    //if the temperature is below the set point
+    // TODO: actually implement PID or at least PI. Right now it's just P.
     if(temperature > -99){
       float distance_to_setpoint = setpoint - temperature;
-      if(abs(distance_to_setpoint)<1){
+      if(abs(distance_to_setpoint)<0.3){
         power = 0;
       }else{
-        power = distance_to_setpoint * 50;
+        if(distance_to_setpoint<0){
+          power = distance_to_setpoint * 100;
+        }else{
+          power = distance_to_setpoint * 50;
+        }
       }
     }else{
       power = 0;
@@ -86,7 +90,7 @@ class Chamber{
     // }else if(distance_to_setpoint<0){
     //   newpower = log10(distance_to_setpoint)*-scaler;
     // }
-    // power = constrain(power, -255, 255);
+    power = constrain(power, -255, 255);
     setOutputs();
   }
   void cycleStatus(){ //quick way to switch directions, mainly for testing
@@ -140,6 +144,8 @@ void setup() {
 
 
 unsigned long timeLastUpdate = 0;
+unsigned long timeLastFanChange = 0;
+
 
 void loop() {
   //run the PID
@@ -151,7 +157,13 @@ void loop() {
       fan = true;
     }
   }
-  digitalWrite(FANPIN, fan);
+  if (fan != digitalRead(FANPIN)){
+    //the fan needs to change, but we don't want it changing too frequently because it sounds annoying.
+    if(millis() - timeLastFanChange > 5000){
+      digitalWrite(FANPIN, fan);
+      timeLastFanChange = millis();
+    }
+  }
   if(millis()-timeLastUpdate>250){
     timeLastUpdate=millis();
     for(int i=0;i<6;i++){
@@ -163,6 +175,7 @@ void loop() {
     Serial.println();
   }
   if (stringComplete){
+    // Serial.print("Command recieved:"); Serial.println(inputString);
     if (inputString.startsWith("S")){
       inputString.remove(0, 1);
       char command[inputString.length()];
