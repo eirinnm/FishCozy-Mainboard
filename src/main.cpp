@@ -2,11 +2,12 @@
 
 const long thermistor_pullup = 100000; //should measure this
 //values from Vishay's excel file
-const long thermistor_r25 = 102000;
+const long thermistor_r25 = 100000;
 const float thermistor_a1 = 0.003354016;
 const float thermistor_b1 = 0.0002460382;
 const float thermistor_c1 = 3.405377e-6;
 const float thermistor_d1 = 1.03424e-7;
+const int steinhart_beta = 4190;
 #define FANPIN 13
 
 class Chamber{
@@ -39,8 +40,11 @@ class Chamber{
     float R = thermistor_pullup / (1024.0 / avgADC - 1) / thermistor_r25;
     float logR = log(R); 
     //float temp = 1/(thermistor_a1 + thermistor_b1*logR + thermistor_c1*logR*logR + thermistor_d1*logR*logR*logR);
-    float temp = 1/(thermistor_a1 + thermistor_b1*logR + thermistor_c1*logR*logR*logR);
-    temperature = temp-273.15; 
+    //float temp = 1/(thermistor_a1 + thermistor_b1*logR + thermistor_c1*logR*logR*logR);
+    //simplified steinhart-hart equation using beta value
+    float steinhart = (logR / steinhart_beta) + 1.0 / (25 + 273.15);
+    float temp = 1.0 / steinhart;
+    temperature = temp-273.15; //convert to celsius
     if(temperature<-10){
       temperature = -99; //this is an error state
     }
